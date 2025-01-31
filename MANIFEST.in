@@ -1,1 +1,6 @@
-include setup.py README.md MANIFEST.in LICENSE semantic_release/defaults.cfg
+# Make sure non-python files are included
+graft src/**/data/
+
+# include docs & testing into sdist, ignored for wheel build
+graft tests/
+graft docs/
