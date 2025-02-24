@@ -1,19 +1,33 @@
 # This Dockerfile is only for GitHub Actions
-FROM python:3.9
+FROM python:3.13-bookworm
 
-RUN set -ex; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-        git-lfs
+# Copy python-semantic-release source code into container
+COPY . /psr
 
-ENV PYTHONPATH /semantic-release
+RUN \
+    # Install desired packages
+    apt update && apt install -y --no-install-recommends \
+        # install git with git-lfs support
+        git git-lfs \
+        # install python cmodule / binary module build utilities
+        python3-dev gcc make cmake cargo \
+    # Configure global pip
+    && { \
+        printf '%s\n' "[global]"; \
+        printf '%s\n' "no-cache-dir = true"; \
+        printf '%s\n' "disable-pip-version-check = true"; \
+    } > /etc/pip.conf \
+    # Create virtual environment for python-semantic-release
+    && python3 -m venv /psr/.venv \
+    # Update core utilities in the virtual environment
+    && /psr/.venv/bin/pip install -U pip setuptools wheel \
+    # Install psr & its dependencies from source into virtual environment
+    && /psr/.venv/bin/pip install /psr \
+    # Cleanup
+    && apt clean -y
 
-COPY . /semantic-release
+ENV PSR_DOCKER_GITHUB_ACTION=true
 
-RUN cd /semantic-release && \
-    python -m venv /semantic-release/.venv && \
-    /semantic-release/.venv/bin/pip install .
+ENV PYTHONDONTWRITEBYTECODE=1
 
-RUN /semantic-release/.venv/bin/python -m semantic_release.cli --help
-
-ENTRYPOINT ["/semantic-release/action.sh"]
+ENTRYPOINT ["/bin/bash", "-l", "/psr/action.sh"]
